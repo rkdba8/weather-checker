@@ -1,0 +1,52 @@
+name: Watch Immoweb
+
+on:
+  schedule:
+    # Toutes les heures, à H:00 UTC
+    - cron: "0 * * * *"
+  workflow_dispatch: {}  # permet de lancer manuellement depuis l'onglet Actions
+
+# Nécessaire pour que le job puisse commit/push seen.json
+permissions:
+  contents: write
+
+concurrency:
+  group: watch-immoweb
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Run watcher
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python watch_immoweb.py
+
+      - name: Commit seen.json if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- seen.json; then
+            git add seen.json
+            git commit -m "chore: update seen.json [skip ci]"
+            git push
+          else
+            echo "Aucun changement dans seen.json"
+          fi
