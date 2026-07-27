@@ -13,7 +13,7 @@ from playwright.sync_api import sync_playwright, Error as PlaywrightError
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-DATE_CIBLE = datetime(2026, 6, 1)
+DATE_CIBLE = datetime(2026, 9, 1)
 
 URL_RECHERCHE = (
     "https://www.immoweb.be/en/search/house-and-apartment/for-rent"
