@@ -152,12 +152,52 @@ def extraire_date_dispo(html):
 
 
 def extraire_prix_titre(html):
-    m_prix = re.search(r'"mainValue"\s*:\s*(\d+)', html, re.IGNORECASE)
-    m_titre = re.search(r"<title>([^<]+)</title>", html, re.IGNORECASE)
-    prix = f"{m_prix.group(1)} €/mois" if m_prix else "?"
-    titre = re.sub(r"\s*\|.*", "", m_titre.group(1)).strip() if m_titre else "Annonce Immoweb"
-    return prix, titre
+    # Loyer
+    m_loyer = re.search(
+        r'"mainValue"\s*:\s*(\d+(?:\.\d+)?)',
+        html,
+        re.IGNORECASE
+    )
 
+    # Charges affichées par Immoweb entre parenthèses : (+ €XXX)
+    m_charges = re.search(
+        r'"additionalValue"\s*:\s*(\d+(?:\.\d+)?)',
+        html,
+        re.IGNORECASE
+    )
+
+    # Titre
+    m_titre = re.search(
+        r"<title>([^<]+)</title>",
+        html,
+        re.IGNORECASE
+    )
+
+    titre = (
+        re.sub(r"\s*\|.*", "", m_titre.group(1)).strip()
+        if m_titre
+        else "Annonce Immoweb"
+    )
+
+    if not m_loyer:
+        return "?", titre
+
+    loyer = int(float(m_loyer.group(1)))
+    charges = int(float(m_charges.group(1))) if m_charges else 0
+    total = loyer + charges
+
+    def euros(nombre):
+        return f"{nombre:,}".replace(",", " ")
+
+    if charges > 0:
+        prix = (
+            f"{euros(total)} €/mois "
+            f"({euros(loyer)} € + {euros(charges)} € charges)"
+        )
+    else:
+        prix = f"{euros(loyer)} €/mois"
+
+    return prix, titre
 
 # ---------------------------------------------------------------------------
 # MAIN
@@ -210,7 +250,7 @@ def main():
                         "🟢 <b>Appart dispo dès septembre !</b>\n\n"
                         f"🏠 <b>{titre}</b>\n"
                         f"📅 <b>Disponible :</b> {date_texte}\n"
-                        f"💶 <b>Prix :</b> {prix}\n\n"
+                        f"💶 <b>Prix total :</b> {prix}\n\n"
                         f'<a href="{annonce["url"]}">👉 Voir l\'annonce</a>'
                     )
                     envoyer_telegram(msg)
