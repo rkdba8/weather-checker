@@ -114,73 +114,14 @@ def charger_page(context, url, wait_ms=3000):
 # EXTRACTION
 # ---------------------------------------------------------------------------
 def extraire_annonces(html):
-    soup = BeautifulSoup(
-        html,
-        "html.parser",
-    )
-
     annonces = []
     ids_vus = set()
-
-    # Uniquement la vraie liste de résultats Immoweb
-    liste = soup.select_one(
-        "ul#main-content"
-    )
-
-    if not liste:
-        print(
-            "⚠️ Liste #main-content introuvable."
-        )
-        return []
-
-    # Uniquement les vraies cartes d'annonces
-    for article in liste.select(
-        'article[id^="classified_"]'
-    ):
-
-        article_id = article.get(
-            "id",
-            ""
-        )
-
-        id_annonce = article_id.removeprefix(
-            "classified_"
-        )
-
-        if not id_annonce.isdigit():
-            continue
-
-        lien = article.select_one(
-            "a.card__title-link[href]"
-        )
-
-        if not lien:
-            continue
-
-        url = lien.get(
-            "href",
-            ""
-        ).split("?")[0]
-
-        # On garde uniquement les vraies annonces
-        # de la version anglaise Immoweb
-        if not url.startswith(
-            "https://www.immoweb.be/en/classified/"
-        ):
-            continue
-
-        if id_annonce in ids_vus:
-            continue
-
-        ids_vus.add(
-            id_annonce
-        )
-
-        annonces.append({
-            "id": id_annonce,
-            "url": url,
-        })
-
+    for m in REGEX_URL.finditer(html):
+        id_annonce = m.group(1)
+        url = m.group(0).split("?")[0]
+        if id_annonce not in ids_vus:
+            ids_vus.add(id_annonce)
+            annonces.append({"id": id_annonce, "url": url})
     return annonces
 
 
@@ -211,6 +152,11 @@ def extraire_date_dispo(html):
 
 
 def extraire_prix_titre(html):
+    m_prix = re.search(r'"mainValue"\s*:\s*(\d+)', html, re.IGNORECASE)
+    m_titre = re.search(r"<title>([^<]+)</title>", html, re.IGNORECASE)
+    prix = f"{m_prix.group(1)} €/mois" if m_prix else "?"
+    titre = re.sub(r"\s*\|.*", "", m_titre.group(1)).strip() if m_titre else "Annonce Immoweb"
+    return prix, titre
     # Loyer
     m_loyer = re.search(
         r'"mainValue"\s*:\s*(\d+(?:\.\d+)?)',
@@ -309,6 +255,7 @@ def main():
                         "🟢 <b>Appart dispo dès septembre !</b>\n\n"
                         f"🏠 <b>{titre}</b>\n"
                         f"📅 <b>Disponible :</b> {date_texte}\n"
+                        f"💶 <b>Prix :</b> {prix}\n\n"
                         f"💶 <b>Prix total :</b> {prix}\n\n"
                         f'<a href="{annonce["url"]}">👉 Voir l\'annonce</a>'
                     )
